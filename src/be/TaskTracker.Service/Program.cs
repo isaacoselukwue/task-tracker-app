@@ -1,7 +1,8 @@
-using TaskTracker.Infrastructure;
-using TaskTracker.Infrastructure.Email;
-using TaskTracker.Service;
-using TaskTracker.Service.Consumers;
+global using TaskTracker.Infrastructure;
+global using TaskTracker.Infrastructure.Email;
+global using TaskTracker.Service;
+global using TaskTracker.Service.Consumers;
+global using TaskTracker.Service.Jobs;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddHostedService<Worker>();
@@ -34,6 +35,7 @@ builder.Services.AddMassTransit(config =>
 });
 
 builder.Services.AddScoped<NotificationConsumer>();
+builder.Services.AddScoped<INotificationJob, NotificationJob>();
 
 var host = builder.Build();
 host.Run();

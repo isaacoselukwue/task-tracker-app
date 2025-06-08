@@ -12,5 +12,6 @@ public enum NotificationTypeEnum
     ChangePasswordSuccess,
     AccountActivationAdmin,
     PasswordResetInitiation,
-    PasswordResetSuccess
+    PasswordResetSuccess,
+    UpcomingTaskReminder
 }
