@@ -1,5 +1,3 @@
-using TaskTracker.Service.Jobs;
-
 namespace TaskTracker.Service;
 
 public class Worker(ILogger<Worker> logger, INotificationJob notificationJob) : BackgroundService

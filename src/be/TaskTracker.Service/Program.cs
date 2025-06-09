@@ -3,9 +3,18 @@ global using TaskTracker.Infrastructure.Email;
 global using TaskTracker.Service;
 global using TaskTracker.Service.Consumers;
 global using TaskTracker.Service.Jobs;
+global using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddHostedService<Worker>();
+
+builder.Services.AddSerilog((context, config) =>
+{
+    config.Enrich.FromLogContext()
+        .WriteTo.Console()
+        .ReadFrom.Configuration(builder.Configuration);
+});
+
 
 builder.AddInfrastructureWorkerServices();
 
@@ -35,7 +44,7 @@ builder.Services.AddMassTransit(config =>
 });
 
 builder.Services.AddScoped<NotificationConsumer>();
-builder.Services.AddScoped<INotificationJob, NotificationJob>();
+builder.Services.AddSingleton<INotificationJob, NotificationJob>();
 
 var host = builder.Build();
 host.Run();

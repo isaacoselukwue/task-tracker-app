@@ -1,5 +1,5 @@
 ﻿global using System.Collections.Concurrent;
-global using TaskTracker.Application.Tasks;
+global using TaskTracker.Application.TaskReminders;
 global using TaskTracker.Domain.Enums;
 
 namespace TaskTracker.Service.Jobs;
@@ -17,7 +17,7 @@ public class NotificationJob(ILogger<NotificationJob> logger, IBus bus, IService
         ITaskTrackerService taskService = scope.ServiceProvider.GetRequiredService<ITaskTrackerService>();
         IEmailService emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
-        List<TaskReminderDto> pendingReminders = await taskService.GetPendingRemindersAsync();
+        List<TaskReminderDto> pendingReminders = await taskService.GetPendingRemindersAsync(cancellationToken);
         _logger.LogInformation("Found {count} pending reminders to send.", pendingReminders.Count);
 
         ConcurrentBag<Task> bag = [];
@@ -34,7 +34,7 @@ public class NotificationJob(ILogger<NotificationJob> logger, IBus bus, IService
                         {"DueDate", reminder.DueDate.ToString("dd-MMM-yyyy hh:mm") }
                     };
                     await bus.Publish(new NotificationEvent(reminder.UsersEmail, "You have an upcoming Task", NotificationTypeEnum.UpcomingTaskReminder, replacements), cancellationToken);
-                    await taskService.MarkReminderAsSentAsync(reminder.Id);
+                    await taskService.MarkReminderAsSentAsync(reminder.Id, cancellationToken);
                     _logger.LogInformation("Sent reminder for TaskId: {TaskId}", reminder.TaskId);
                 }
                 catch (Exception ex)

@@ -6,5 +6,6 @@ public class Tasks : BaseAuditableEntity
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public StatusEnum Status { get; set; } = StatusEnum.Active;
+    public DateTimeOffset ScheduledFor { get; set; }
     public ICollection<TasksReminder>? Reminders { get; set; }
 }

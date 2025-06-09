@@ -1,5 +1,5 @@
-﻿namespace TaskTracker.Application.Tasks;
-internal class Tasks
+﻿namespace TaskTracker.Application.TaskReminders;
+internal class TaskReminders
 {
 }
 

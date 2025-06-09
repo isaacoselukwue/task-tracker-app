@@ -179,15 +179,8 @@ public static class DependencyInjection
             throw new InvalidOperationException("Connection string not found");
         }
 
-        builder.Services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
-
         builder.Services.AddDbContextPool<TaskDbContext>((sp, options) =>
         {
-            using (var scope = sp.CreateScope())
-            {
-                var scopedProvider = scope.ServiceProvider;
-                options.AddInterceptors(scopedProvider.GetServices<ISaveChangesInterceptor>());
-            }
             options.UseNpgsql(connectionString,
                 npgsqlOptions =>
                 {
