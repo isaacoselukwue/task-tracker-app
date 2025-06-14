@@ -60,7 +60,13 @@ export default function TasksPage() {
 
 
   useEffect(() => {
-    fetchTasks({});
+        fetchTasks({
+        search: search || undefined,
+        status: status || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        pageOverride: page
+    });
   }, [page]);
 
   const fetchTasks = async (filters: {
@@ -75,13 +81,23 @@ export default function TasksPage() {
     try {
       const apiKey = import.meta.env.VITE_BASE_API_KEY;
       const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      let utcStartDateString = "";
+      if (filters.startDate) {
+        utcStartDateString = new Date(filters.startDate).toISOString();
+      }
+      let utcEndDateString = "";
+      if (filters.endDate) {
+        const dateObj = new Date(filters.endDate);
+        dateObj.setUTCHours(23, 59, 59, 999);
+        utcEndDateString = dateObj.toISOString();
+      }
       const params = new URLSearchParams({
         PageCount: '10',
         PageNumber: (filters.pageOverride ?? page).toString(),
         ...(filters.search ? { SearchString: filters.search } : {}),
         ...(filters.status ? { Status: filters.status.toString() } : {}),
-        ...(filters.startDate ? { UpcomingStartDate: filters.startDate } : {}),
-        ...(filters.endDate ? { UpcomingEndDate: filters.endDate } : {}),
+        ...(utcStartDateString ? { UpcomingStartDate: utcStartDateString } : {}),
+        ...(utcEndDateString ? { UpcomingEndDate: utcEndDateString } : {}),
       });
       const response = await fetch(`${baseUrl}/Tasks/users-tasks?${params.toString()}`, {
         headers: {
@@ -134,6 +150,8 @@ export default function TasksPage() {
     try {
       const apiKey = import.meta.env.VITE_BASE_API_KEY;
       const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const localDate = new Date(createForm.scheduledFor);
+      const scheduledForUtc = localDate.toISOString();
       const response = await fetch(`${baseUrl}/Tasks/create`, {
         method: 'POST',
         headers: {
@@ -144,7 +162,7 @@ export default function TasksPage() {
         body: JSON.stringify({
           title: createForm.title,
           description: createForm.description,
-          scheduledFor: createForm.scheduledFor,
+          scheduledFor: scheduledForUtc,
           reminderOffsets: createForm.reminderOffsets,
         }),
       });
