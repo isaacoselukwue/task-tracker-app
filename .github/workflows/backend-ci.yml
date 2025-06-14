@@ -66,6 +66,7 @@ jobs:
 
     - name: Dependency Review
       uses: actions/dependency-review-action@v4
+      if: github.event_name == 'pull_request'
     
     - name: Run Backend Tests
       run: dotnet test tests/be/TaskTracker.Tests/TaskTracker.Tests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=backend-test-results.trx" --results-directory ./TestResultsForUpload
