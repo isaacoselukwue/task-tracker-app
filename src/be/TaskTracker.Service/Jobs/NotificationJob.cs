@@ -31,7 +31,7 @@ public class NotificationJob(ILogger<NotificationJob> logger, IBus bus, IService
                     Dictionary<string, string> replacements = new(){
                         {"{{TaskName}}", reminder.TaskName },
                         {"{{TaskDescription}}", reminder.TaskDescription },
-                        {"DueDate", reminder.DueDate.ToString("dd-MMM-yyyy hh:mm") }
+                        {"{{DueDate}}", reminder.DueDate.ToString("dd-MMM-yyyy hh:mm tt") }
                     };
                     await bus.Publish(new NotificationEvent(reminder.UsersEmail, "You have an upcoming Task", NotificationTypeEnum.UpcomingTaskReminder, replacements), cancellationToken);
                     await taskService.MarkReminderAsSentAsync(reminder.Id, cancellationToken);
