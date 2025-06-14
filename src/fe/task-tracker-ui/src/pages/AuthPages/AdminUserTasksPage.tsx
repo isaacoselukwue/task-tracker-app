@@ -33,7 +33,7 @@ export default function AdminUserTasksPage() {
 
   useEffect(() => {
     fetchTasks();
-  }, [userId, page]);
+  }, [userId, page, status, search, startDate, endDate]);
 
   const fetchTasks = async (opts?: { pageOverride?: number }) => {
     setLoading(true);
@@ -41,14 +41,24 @@ export default function AdminUserTasksPage() {
     try {
       const apiKey = import.meta.env.VITE_BASE_API_KEY;
       const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      let utcStartDateString = "";
+      if (startDate) {
+        utcStartDateString = new Date(startDate).toISOString();
+      }
+      let utcEndDateString = "";
+      if (endDate) {
+        const dateObj = new Date(endDate);
+        dateObj.setUTCHours(23, 59, 59, 999);
+        utcEndDateString = dateObj.toISOString();
+      }
       const params = new URLSearchParams({
         PageCount: "10",
         PageNumber: (opts?.pageOverride ?? page).toString(),
       ...(userId ? { UserId: userId } : {}),
       ...(status ? { Status: status.toString() } : {}),
       ...(search ? { SearchString: search } : {}),
-      ...(startDate ? { UpcomingStartDate: startDate } : {}),
-      ...(endDate ? { UpcomingEndDate: endDate } : {}),
+      ...(utcStartDateString ? { UpcomingStartDate: utcStartDateString } : {}),
+      ...(utcEndDateString ? { UpcomingEndDate: utcEndDateString } : {}),
       });
       const response = await fetch(`${baseUrl}/Tasks/admin/all-tasks?${params.toString()}`, {
         headers: {
