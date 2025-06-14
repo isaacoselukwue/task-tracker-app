@@ -1,12 +1,12 @@
 ﻿using TaskTracker.Application.TaskReminders;
 
 namespace TaskTracker.Infrastructure.Tasks;
-public class TaskTrackerNService(ITaskDbContext taskDbContext) : ITaskTrackerNService
+public class TaskTrackerNService(ITaskDbContext taskDbContext, ILogger<TaskTrackerNService> logger) : ITaskTrackerNService
 {
     public async Task<List<TaskReminderDto>> GetPendingRemindersAsync(CancellationToken cancellationToken)
     {
         DateTimeOffset utcNow = DateTime.UtcNow;
-
+        logger.LogInformation("GetPendingRemindersAsync: Current App Server UTC time is {ServerUtcNow}", utcNow);
         return await taskDbContext.TaskReminders
             .AsNoTracking()
             .Where(r =>
