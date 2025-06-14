@@ -18,7 +18,7 @@ public class Worker(ILogger<Worker> logger, INotificationJob notificationJob) : 
             {
                 _logger.LogError(ex, "Unhandled error occurred while processing reminders.");
             }
-            await Task.Delay(1000, stoppingToken);
+            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
         }
     }
 }

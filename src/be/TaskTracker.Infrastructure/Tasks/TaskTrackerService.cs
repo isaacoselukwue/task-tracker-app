@@ -4,7 +4,7 @@ using TaskTracker.Application.TaskReminders.Commands;
 using TaskTracker.Application.TaskReminders.Queries;
 
 namespace TaskTracker.Infrastructure.Tasks;
-internal class TaskTrackerService (HybridCache hybridCache, ICurrentUser currentUser, ITaskDbContext taskDbContext)
+public class TaskTrackerService (HybridCache hybridCache, ICurrentUser currentUser, ITaskDbContext taskDbContext)
     : ITaskTrackerService
 {
     public async Task<List<TaskReminderDto>> GetPendingRemindersAsync(CancellationToken cancellationToken)
@@ -55,7 +55,7 @@ internal class TaskTrackerService (HybridCache hybridCache, ICurrentUser current
                 Sent = false
             })],
             UserId = currentUser.UserId,
-            ScheduledFor = task.ScheduledFor,
+            ScheduledFor = task.ScheduledFor.ToUniversalTime(),
             Status = StatusEnum.Active,
             Title = task.Title!
         };
@@ -73,7 +73,8 @@ internal class TaskTrackerService (HybridCache hybridCache, ICurrentUser current
             Id = query.Id,
             ScheduledFor = query.ScheduledFor,
             Title = query.Title,
-            Status = query.Status
+            Status = query.Status,
+            UserId = query.UserId
         }).AsQueryable();
     }
 
@@ -85,7 +86,8 @@ internal class TaskTrackerService (HybridCache hybridCache, ICurrentUser current
             Id = query.Id,
             ScheduledFor = query.ScheduledFor,
             Title = query.Title,
-            Status = query.Status
+            Status = query.Status,
+            UserId = query.UserId
         }).AsQueryable();
     }
 
@@ -96,8 +98,52 @@ internal class TaskTrackerService (HybridCache hybridCache, ICurrentUser current
             Id = query.Id,
             ScheduledFor = query.ScheduledFor,
             Title = query.Title,
-            Status = query.Status
+            Status = query.Status,
+            UserId = query.UserId
         }).AsQueryable();
+
+    private async Task<UserStastisticsDto> GetFreshStatisticsAsync(CancellationToken cancellationToken)
+    {
+        var query = await taskDbContext.Users
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Active = g.Count(x => x.UsersStatus == StatusEnum.Active),
+                Inactive = g.Count(x => x.UsersStatus == StatusEnum.InActive),
+                Deleted = g.Count(x => x.UsersStatus == StatusEnum.Deleted),
+                Pending = g.Count(x => x.UsersStatus == StatusEnum.Pending)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return new UserStastisticsDto
+        {
+            UsersCount = query?.Total ?? 0,
+            ActiveUsersCount = query?.Active ?? 0,
+            DeactivatedUsersCount = query?.Inactive ?? 0,
+            DeletedUsersCount = query?.Deleted ?? 0,
+            PendingUsersCount = query?.Pending ?? 0
+        };
+    }
+
+
+    public async Task<UserStastisticsDto> GetUserStastisticsAsync(bool refresh, CancellationToken cancellationToken)
+    {
+        const string cacheKey = $"{nameof(UserStastisticsDto)}";
+        if (refresh)
+        {
+            UserStastisticsDto freshData = await GetFreshStatisticsAsync(cancellationToken);
+            await hybridCache.SetAsync(cacheKey, freshData, cancellationToken: cancellationToken);
+            return freshData;
+        }
+        else
+        {
+            return await hybridCache.GetOrCreateAsync(cacheKey, async entry =>
+            {
+                return await GetFreshStatisticsAsync(cancellationToken);
+            }, cancellationToken: cancellationToken);
+        }
+    }
 
     public async Task<Result> MarkTaskAsDoneAsync(Guid taskId, CancellationToken cancellationToken)
     {

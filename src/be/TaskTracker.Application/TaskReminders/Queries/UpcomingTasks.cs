@@ -18,7 +18,7 @@ public class GetUpcomingTasksQueryHandler(ITaskTrackerService taskTrackerService
         int totalResults = await upcomingTasks.CountAsync(cancellationToken: cancellationToken);
         int totalPages = (int)Math.Ceiling((double)totalResults / request.PageCount);
 
-        List<UpcomingTasksResult> result = await upcomingTasks.Select(tasks => new UpcomingTasksResult
+        List<UpcomingTasksResult> result = await upcomingTasks.OrderBy(x => x.ScheduledFor).Select(tasks => new UpcomingTasksResult
         {
             Description = tasks.Description,
             Id = tasks.Id,
@@ -56,4 +56,5 @@ public class UpcomingTasksResult
     public string? Description { get; set; }
     public DateTimeOffset ScheduledFor { get; set; }
     public StatusEnum Status { get; set; }
+    public Guid UserId { get; set; }
 }

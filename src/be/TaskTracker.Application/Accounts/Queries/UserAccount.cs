@@ -28,17 +28,18 @@ public class UserAccountQueryHandler(IIdentityService identityService) : IReques
         int totalResults = await userAccounts.CountAsync(cancellationToken: cancellationToken);
         int totalPages = (int)Math.Ceiling((double)totalResults / request.PageCount);
 
-        List<UserAccountResult> result = await userAccounts.Select(x => new UserAccountResult
-        {
-            DateAccountCreated = x.DateAccountCreated,
-            EmailAddress = x.EmailAddress,
-            FirstName = x.FirstName,
-            LastName = x.LastName,
-            PhoneNumber = x.PhoneNumber,
-            Status = x.Status,
-            UserId = x.UserId,
-            Roles = x.Roles
-        })
+        List<UserAccountResult> result = await userAccounts.OrderBy(x => x.DateAccountCreated)
+            .Select(x => new UserAccountResult
+            {
+                DateAccountCreated = x.DateAccountCreated,
+                EmailAddress = x.EmailAddress,
+                FirstName = x.FirstName,
+                LastName = x.LastName,
+                PhoneNumber = x.PhoneNumber,
+                Status = x.Status,
+                UserId = x.UserId,
+                Roles = x.Roles
+            })
                 .Skip((request.PageNumber - 1) * request.PageCount)
                 .Take(request.PageCount)
                 .ToListAsync(cancellationToken: cancellationToken);

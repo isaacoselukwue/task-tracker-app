@@ -1,5 +1,4 @@
-﻿
-namespace TaskTracker.Application.TaskReminders.Queries;
+﻿namespace TaskTracker.Application.TaskReminders.Queries;
 public record AdminTasksQuery : IRequest<Result<AdminTasksDto>>
 {
     public int PageCount { get; set; }
@@ -8,6 +7,7 @@ public record AdminTasksQuery : IRequest<Result<AdminTasksDto>>
     public StatusEnum? Status { get; set; }
     public DateTimeOffset? UpcomingStartDate { get; set; }
     public DateTimeOffset? UpcomingEndDate { get; set; }
+    public Guid? UserId { get; set; }
 }
 
 public class AdminTasksValidator : AbstractValidator<AdminTasksQuery>
@@ -42,18 +42,21 @@ public class AdminTasksQueryHandler(ITaskTrackerService taskTrackerService) : IR
 {
     public async Task<Result<AdminTasksDto>> Handle(AdminTasksQuery request, CancellationToken cancellationToken)
     {
-        IQueryable<UpcomingTasksResult> tasks = taskTrackerService.GetTasks();
+        IQueryable<UpcomingTasksResult> tasks = taskTrackerService.GetTasksNoId();
 
         if (!string.IsNullOrEmpty(request.SearchString))
         {
-            tasks = tasks.Where(x => x.Title.Contains(request.SearchString));
+            tasks = tasks.Where(x => EF.Functions.Like(x.Title, $"%{request.SearchString}%"));
         }
 
         if (request.UpcomingStartDate.HasValue && request.UpcomingEndDate.HasValue)
         {
-            DateTimeOffset start = request.UpcomingStartDate.Value.Date;
-            DateTimeOffset end = request.UpcomingEndDate.Value.Date.AddDays(1).AddTicks(-1);
-            tasks = tasks.Where(x => x.ScheduledFor >= start && x.ScheduledFor <= end);
+            DateTime start = request.UpcomingStartDate.Value.UtcDateTime.Date;
+            DateTimeOffset startUtc = new(start, TimeSpan.Zero);
+            DateTime end = request.UpcomingEndDate.Value.UtcDateTime.Date.AddDays(1).AddTicks(-1);
+            DateTimeOffset endUtc = new(end, TimeSpan.Zero);
+
+            tasks = tasks.Where(x => x.ScheduledFor >= startUtc && x.ScheduledFor <= endUtc);
         }
 
         if (request.Status.HasValue)
@@ -61,15 +64,22 @@ public class AdminTasksQueryHandler(ITaskTrackerService taskTrackerService) : IR
             tasks = tasks.Where(x => x.Status == request.Status.Value);
         }
 
+        if (request.UserId is { } userId)
+        {
+            tasks = tasks.Where(x => x.UserId == userId);
+        }
+
         int totalResults = await tasks.CountAsync(cancellationToken: cancellationToken);
         int totalPages = (int)Math.Ceiling((double)totalResults / request.PageCount);
 
-        List<UpcomingTasksResult> result = await tasks.Select(tasks => new UpcomingTasksResult
+        List<UpcomingTasksResult> result = await tasks.OrderBy(x => x.ScheduledFor).Select(tasks => new UpcomingTasksResult
         {
             Description = tasks.Description,
             Id = tasks.Id,
             ScheduledFor = tasks.ScheduledFor,
-            Title = tasks.Title
+            Title = tasks.Title,
+            UserId = tasks.UserId,
+            Status = tasks.Status
         }).Skip((request.PageNumber - 1) * request.PageCount)
                 .Take(request.PageCount)
                 .ToListAsync(cancellationToken: cancellationToken);

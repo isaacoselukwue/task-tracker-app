@@ -1,6 +1,6 @@
 ﻿
 namespace TaskTracker.Application.TaskReminders.Commands;
-public record CreateTaskCommand : IRequest<Result<Guid>>
+public record CreateTaskCommand : IRequest<Result>
 {
     public string? Title { get; set; }
     public string? Description { get; set; }
@@ -14,7 +14,7 @@ public class CreateTaskValidator : AbstractValidator<CreateTaskCommand>
     {
         RuleFor(x => x.Title).NotEmpty();
         RuleFor(x => x.ScheduledFor).NotEmpty();
-        RuleFor(x => x.ReminderOffsets).IsInEnum();
+        RuleForEach(x => x.ReminderOffsets).IsInEnum();
     }
 }
 

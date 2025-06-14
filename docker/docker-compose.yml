@@ -1,0 +1,187 @@
+name: tasktracker-app
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: src/be/TaskTracker.Api/Dockerfile
+    ports:
+      - "7092:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://0.0.0.0:8080
+      - ConnectionStrings__DefaultConnection=${POSTGRES_CONNECTION_STRING}
+      - ConnectionStrings__RedisConnection=${REDIS_CONNECTION_STRING}
+      - JwtSettings__Secret=${JWT_SECRET}
+      - ApiKey=${API_KEY}
+      - RabbitMqSettings__Host=rabbitmq
+      - RabbitMqSettings__UserName=${RABBITMQ_USER}
+      - RabbitMqSettings__Password=${RABBITMQ_PASSWORD}
+      - OpenTelemetry__OtlpEndpoint=http://jaeger:4317
+      - OpenTelemetry__HealthUrl=http://jaeger:16686
+      - OpenTelemetry__ServiceName=TaskTracker.Api
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+      - OpenApi__ServerUrl=http://localhost:7092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - tasktracker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  worker:
+    build:
+      context: ..
+      dockerfile: src/be/TaskTracker.Service/Dockerfile
+    environment:
+      - DOTNET_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=${POSTGRES_CONNECTION_STRING}
+      - MailSettings__UserName=${MAIL_USERNAME}
+      - MailSettings__Password=${MAIL_PASSWORD}
+      - MailSettings__BaseUrl=http://web:80
+      - RabbitMqSettings__Host=rabbitmq
+      - RabbitMqSettings__UserName=${RABBITMQ_USER}
+      - RabbitMqSettings__Password=${RABBITMQ_PASSWORD}
+      - OpenTelemetry__OtlpEndpoint=http://jaeger:4317
+      - OpenTelemetry__ServiceName=TaskTracker.Worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - tasktracker-network
+
+  web:
+    build:
+      context: ..
+      dockerfile: src/fe/task-tracker-ui/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:7092/api/v1
+        VITE_BASE_API_KEY: ${VITE_BASE_API_KEY_FROM_ENV}
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - tasktracker-network
+
+  backend-tests:
+    build:
+      context: ..
+      dockerfile: tests/be/TaskTracker.Tests/Dockerfile
+    environment:
+      - DOTNET_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=${POSTGRES_CONNECTION_STRING}
+      - JwtSettings__Secret=${JWT_SECRET}
+    volumes:
+      - ../testresults/backend:/testresults
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - tasktracker-network
+
+  frontend-tests:
+    build:
+      context: ../src/fe/task-tracker-ui
+      dockerfile: Dockerfile.test
+      args:
+        VITE_API_BASE_URL_TEST: http://api:8080
+
+    networks:
+      - tasktracker-network
+    depends_on:
+      api:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - tasktracker-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq/
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - tasktracker-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "6831:6831/udp"
+      - "16686:16686"
+      - "14268:14268"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
+    networks:
+      - tasktracker-network
+
+  healthchecks-ui:
+    image: xabarilcoding/healthchecksui:latest
+    container_name: tasktracker-healthchecks
+    ports:
+      - "8000:80"
+    environment:
+      - HealthChecksUI__HealthChecks__0__Name=TaskTracker.API
+      - HealthChecksUI__HealthChecks__0__Uri=http://api:8080/health
+      - Logging__LogLevel__Default=Information
+    depends_on:
+      - api
+    networks:
+      - tasktracker-network
+    restart: unless-stopped
+
+networks:
+  tasktracker-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  rabbitmq-data:

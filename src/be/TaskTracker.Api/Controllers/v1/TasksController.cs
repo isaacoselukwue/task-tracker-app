@@ -56,10 +56,20 @@ public class TasksController(ISender sender) : BaseController
     }
 
     [HttpGet("admin/all-tasks")]
-    [Authorize(Policy = "UserPolicy")]
-    [ProducesResponseType(typeof(Result), 200)]
-    [ProducesResponseType(typeof(Result), 400)]
-    public async ValueTask<ActionResult<Result>> AdminTasks([FromQuery] AdminTasksQuery query)
+    [Authorize(Policy = "AdminPolicy")]
+    [ProducesResponseType(typeof(Result<AdminTasksDto>), 200)]
+    [ProducesResponseType(typeof(Result<AdminTasksDto>), 400)]
+    public async ValueTask<ActionResult<Result<AdminTasksDto>>> AdminTasks([FromQuery] AdminTasksQuery query)
+    {
+        var result = await sender.Send(query);
+        return result.Succeeded ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpGet("admin/stastistics")]
+    [Authorize(Policy = "AdminPolicy")]
+    [ProducesResponseType(typeof(Result<AdminTasksDto>), 200)]
+    [ProducesResponseType(typeof(Result<AdminTasksDto>), 400)]
+    public async ValueTask<ActionResult<Result>> UserStastics([FromQuery] UserStastisticsQuery query)
     {
         var result = await sender.Send(query);
         return result.Succeeded ? Ok(result) : BadRequest(result);

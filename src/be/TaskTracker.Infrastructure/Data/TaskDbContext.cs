@@ -3,7 +3,7 @@ global using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 global using System.Reflection;
 
 namespace TaskTracker.Infrastructure.Data;
-internal class TaskDbContext : IdentityDbContext<Users, UserRoles, Guid>, IDataProtectionKeyContext, ITaskDbContext
+public class TaskDbContext : IdentityDbContext<Users, UserRoles, Guid>, IDataProtectionKeyContext, ITaskDbContext
 {
     public TaskDbContext(DbContextOptions<TaskDbContext> options) : base(options)
     {

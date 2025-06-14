@@ -1,0 +1,81 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ '**' ]
+    paths:
+      - 'src/be/TaskTracker.Api/**'
+      - 'src/be/TaskTracker.Application/**'
+      - 'src/be/TaskTracker.Infrastructure/**'
+      - 'src/be/TaskTracker.Domain/**'
+      - 'src/be/TaskTracker.Service/**'
+      - 'tests/be/TaskTracker.Tests/**'
+      - 'TaskTracker.sln'
+  pull_request:
+    branches: [ '**' ]
+    paths:
+      - 'src/be/TaskTracker.Api/**'
+      - 'src/be/TaskTracker.Application/**'
+      - 'src/be/TaskTracker.Infrastructure/**'
+      - 'src/be/TaskTracker.Domain/**'
+      - 'src/be/TaskTracker.Service/**'
+      - 'tests/be/TaskTracker.Tests/**'
+      - 'TaskTracker.sln'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 9.0.x
+    
+    - name: Restore dependencies
+      run: dotnet restore TaskTracker.sln
+    
+    - name: Build
+      run: dotnet build TaskTracker.sln --no-restore --configuration Release
+
+    - name: Run dotnet format (code style & lint)
+      run: dotnet format TaskTracker.sln --verify-no-changes --severity info
+      continue-on-error: true
+
+    - name: Run CodeQL static analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: csharp
+
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+    
+    - name: Run Backend Tests
+      run: dotnet test tests/be/TaskTracker.Tests/TaskTracker.Tests.csproj --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=backend-test-results.trx" --results-directory ./TestResultsForUpload
+      env:
+        ConnectionStrings__DefaultConnection: ${{ secrets.POSTGRES_CONNECTION_STRING }}
+        JwtSettings__Secret: ${{ secrets.JWT_SECRET }}
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: backend-test-results
+        path: TestResultsForUpload/

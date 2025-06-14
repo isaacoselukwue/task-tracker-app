@@ -1,5 +1,4 @@
-﻿
-namespace TaskTracker.Application.TaskReminders.Queries;
+﻿namespace TaskTracker.Application.TaskReminders.Queries;
 public record UserTasksQuery : IRequest<Result<UserTasksDto>>
 {
     public int PageCount { get; set; }
@@ -46,14 +45,17 @@ public class UserTasksQueryHandler(ITaskTrackerService taskTrackerService) : IRe
 
         if (!string.IsNullOrEmpty(request.SearchString))
         {
-            userTasks = userTasks.Where(x => x.Title.Contains(request.SearchString));
+            userTasks = userTasks.Where(x => EF.Functions.Like(x.Title, $"%{request.SearchString}%"));
         }
 
         if (request.UpcomingStartDate.HasValue && request.UpcomingEndDate.HasValue)
         {
-            DateTimeOffset start = request.UpcomingStartDate.Value.Date;
-            DateTimeOffset end = request.UpcomingEndDate.Value.Date.AddDays(1).AddTicks(-1);
-            userTasks = userTasks.Where(x => x.ScheduledFor >= start && x.ScheduledFor <= end);
+            DateTime start = request.UpcomingStartDate.Value.UtcDateTime.Date;
+            DateTimeOffset startUtc = new(start, TimeSpan.Zero);
+            DateTime end = request.UpcomingEndDate.Value.UtcDateTime.Date.AddDays(1).AddTicks(-1);
+            DateTimeOffset endUtc = new(end, TimeSpan.Zero);
+
+            userTasks = userTasks.Where(x => x.ScheduledFor >= startUtc && x.ScheduledFor <= endUtc);
         }
 
         if (request.Status.HasValue)
@@ -69,6 +71,7 @@ public class UserTasksQueryHandler(ITaskTrackerService taskTrackerService) : IRe
             Description = tasks.Description,
             Id = tasks.Id,
             ScheduledFor = tasks.ScheduledFor,
+            Status = tasks.Status,
             Title = tasks.Title
         }).Skip((request.PageNumber - 1) * request.PageCount)
                 .Take(request.PageCount)

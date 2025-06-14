@@ -14,7 +14,7 @@ public class NotificationJob(ILogger<NotificationJob> logger, IBus bus, IService
     public async Task ProcessNotifications(CancellationToken cancellationToken)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
-        ITaskTrackerService taskService = scope.ServiceProvider.GetRequiredService<ITaskTrackerService>();
+        ITaskTrackerNService taskService = scope.ServiceProvider.GetRequiredService<ITaskTrackerNService>();
         IEmailService emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
         List<TaskReminderDto> pendingReminders = await taskService.GetPendingRemindersAsync(cancellationToken);

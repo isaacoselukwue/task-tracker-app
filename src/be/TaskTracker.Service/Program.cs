@@ -4,8 +4,9 @@ global using TaskTracker.Service;
 global using TaskTracker.Service.Consumers;
 global using TaskTracker.Service.Jobs;
 global using Serilog;
+using Microsoft.AspNetCore.Builder;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHostedService<Worker>();
 
 builder.Services.AddSerilog((context, config) =>
@@ -47,4 +48,5 @@ builder.Services.AddScoped<NotificationConsumer>();
 builder.Services.AddSingleton<INotificationJob, NotificationJob>();
 
 var host = builder.Build();
+host.MapGet("/", () => "Hello World!");
 host.Run();

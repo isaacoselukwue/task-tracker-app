@@ -1,0 +1,255 @@
+workspace "Task Tracker System" "A system for users to manage their tasks and for administrators to oversee users and tasks." {
+
+    model {
+    
+        Development = deploymentEnvironment "Development" {
+            userMachine = deploymentNode "User's Machine" "" "Desktop/Laptop OS" {
+                webBrowserNode = deploymentNode "Web Browser" "" "Chrome, Firefox, Edge, etc." {
+                    # frontendInstance = containerInstance frontendApp
+                }
+            }
+
+            dockerHost = deploymentNode "Docker Host" "" "Linux/Windows with Docker Engine" {
+                tags "Server Infrastructure" "Container Host"
+                description "Hosts containerized application components, likely managed by Docker Compose for development."
+                
+                apiContainerDepNode = deploymentNode "Backend API Container" "" "Docker Container (tasktracker-api)" {
+                    # apiInstance = containerInstance api
+                }
+                workerContainerDepNode = deploymentNode "Worker Service Container" "" "Docker Container (tasktracker-service)" {
+                    # workerInstance = containerInstance workerService
+                }
+                dbContainerDepNode = deploymentNode "Database Container" "" "Docker Container (postgres)" {
+                    # dbInstance = containerInstance database
+                }
+                mqContainerDepNode = deploymentNode "Message Queue Container" "" "Docker Container (rabbitmq)" {
+                    # mqInstance = containerInstance messageQueue
+                }
+            }
+            
+            externalNetworkNode = deploymentNode "External Network" "" "Internet" {
+                #  emailServiceInstance = softwareSystemInstance emailSystem {
+                #     description "External Email Service Provider"
+                #  }
+            }
+
+            # userMachine.webBrowserNode -> dockerHost.apiContainerDepNode "Interacts via HTTPS"
+            # dockerHost.apiContainerDepNode -> dockerHost.dbContainerDepNode "Connects via TCP/IP"
+            # dockerHost.apiContainerDepNode -> dockerHost.mqContainerDepNode "Connects via AMQP"
+            # dockerHost.workerContainerDepNode -> dockerHost.dbContainerDepNode "Connects via TCP/IP"
+            # dockerHost.workerContainerDepNode -> dockerHost.mqContainerDepNode "Connects via AMQP"
+            # dockerHost.workerContainerDepNode -> externalNetworkNode.emailServiceInstance "Sends emails via SMTP/API"
+        }
+
+        // Actors
+        user = person "User" "A regular user of the task tracker application who manages their own tasks." "Person"
+        admin = person "Administrator" "An administrator who manages users, system settings, and can view all tasks." "Person"
+
+        // Main Software System
+        taskTrackerSystem = softwareSystem "Task Tracker System" "Allows users to manage tasks and administrators to manage the system. Built with a React frontend and .NET backend." {
+            frontendApp = container "Frontend Application" "Provides the user interface for task management and administration." "React, TypeScript, Vite, Tailwind CSS" "Web Browser SPA" {
+                description "The single-page application (SPA) that users and administrators interact with. Located in 'src/fe/task-tracker-ui'."
+                tags "Frontend" "SPA"
+            }
+
+            // Backend API Container
+            api = container "Backend API" "Handles business logic, data persistence, authentication, and authorization via a RESTful API." "C#, ASP.NET Core, Entity Framework Core, MediatR" "RESTful API" {
+                description "The core backend service. Project: 'src/be/TaskTracker.Api'."
+                tags "Backend" "API"
+
+                authController = component "Authentication Controller" "Manages user signup, login, email verification, and password reset requests." "ASP.NET Core MVC Controller" {
+                    technology "ASP.NET Core"
+                    description "Handles endpoints like /authentication/signup, /authentication/login, /signup/verify. Uses SignupCommand, LoginCommand, SignupVerificationCommand."
+                }
+                tasksController = component "Tasks Controller" "Manages CRUD operations for tasks, task status updates, and admin task views." "ASP.NET Core MVC Controller" {
+                    technology "ASP.NET Core"
+                    description "Handles endpoints like /Tasks/create, /Tasks/upcoming, /Tasks/users-tasks, /Tasks/admin/all-tasks. Uses CreateTaskCommand, UserTasksQuery, AdminTasksQuery."
+                }
+                accountController = component "Account Controller" "Manages user account settings (e.g., change password, deactivate) and admin user management (view users, change roles)." "ASP.NET Core MVC Controller" {
+                    technology "ASP.NET Core"
+                    description "Handles endpoints like /account/change-password, /account/admin/users. Uses UserAccountQuery."
+                }
+                
+                mediatRHandlers = component "MediatR Handlers" "Implements CQRS pattern for handling commands and queries from controllers. Defined in 'TaskTracker.Application'." "MediatR Request Handlers" {
+                    technology "MediatR"
+                    description "Processes commands like CreateTaskCommand and queries like UserTasksQuery, AdminTasksQuery, UserAccountQuery."
+                }
+                
+                identityService = component "Identity Service" "Provides core identity functionalities (user/role management, JWT generation). Implements IIdentityService. Defined in 'TaskTracker.Infrastructure'." "Application Service" {
+                    technology "ASP.NET Core Identity, C#"
+                }
+                taskManagementService = component "Task Management Service" "Encapsulates business logic for tasks and reminders. Implements ITaskTrackerService. Defined in 'TaskTracker.Infrastructure'." "Application Service" {
+                    technology "C#"
+                }
+                
+                dbContext = component "TaskDbContext" "Entity Framework Core DbContext for data access to the PostgreSQL database. Implements ITaskDbContext. Defined in 'TaskTracker.Infrastructure'." "EF Core DbContext" {
+                    technology "Entity Framework Core"
+                    description "Manages DbSets for Users, Tasks, Roles, TaskReminders, PasswordHistories."
+                }
+
+                apiKeyFilter = component "API Key Filter" "Secures API endpoints by requiring a valid API key in headers. Defined in 'TaskTracker.Api'." "ASP.NET Core Filter"
+                jwtAuthentication = component "JWT Authentication" "Validates JWT tokens for authenticated requests using ASP.NET Core Authentication." "ASP.NET Core Middleware"
+                openApiDocs = component "OpenAPI Documentation" "Generates API documentation (Swagger/OpenAPI). Configured in 'TaskTracker.Api'." "NSwag/Swashbuckle"
+
+                // Relationships - API Internal Components
+                authController -> mediatRHandlers "Sends Authentication Commands/Queries (e.g., SignupCommand, LoginCommand)"
+                tasksController -> mediatRHandlers "Sends Task Commands/Queries (e.g., CreateTaskCommand, UserTasksQuery, AdminTasksQuery)"
+                accountController -> mediatRHandlers "Sends Account Commands/Queries (e.g., ChangePasswordCommand, UserAccountQuery)"
+
+                mediatRHandlers -> identityService "Uses for identity operations (user/role management, token validation)"
+                mediatRHandlers -> taskManagementService "Uses for task and reminder business logic"
+                mediatRHandlers -> dbContext "Accesses data via DbContext for complex operations not in services"
+
+                identityService -> dbContext "Reads/Writes User, Role, PasswordHistory Data"
+                taskManagementService -> dbContext "Reads/Writes Task & Reminder Data"
+            }
+
+            // Worker Service Container
+            workerService = container "Worker Service" "Handles background processing, such as sending email notifications and task reminders." "C#, .NET Worker Service, MassTransit" "Background Process" {
+                description "A separate service for asynchronous and scheduled background tasks. Project: 'src/be/TaskTracker.Service'."
+                tags "Backend" "Worker"
+
+                notificationConsumer = component "Notification Consumer" "Consumes messages (e.g., UserSignedUpEvent) from RabbitMQ to trigger email sending." "MassTransit Consumer" {
+                    technology "MassTransit"
+                }
+                emailSender = component "Email Sender" "Sends emails using an external email service, utilizing HTML templates from 'Templates/' directory." "Service Component" {
+                    technology "C#"
+                    description "Implements IEmailService."
+                }
+                
+                notificationConsumer -> emailSender "Triggers email sending based on consumed event"
+            }
+
+            // Database Container
+            database = container "Database" "Stores all application data including user accounts, tasks, reminders, roles, and password history." "PostgreSQL" "Relational Database" {
+                description "The persistent storage for the application. Schema managed by EF Core migrations."
+                tags "Database" "Storage"
+                
+                usersTable = component "Users Table" "Stores user profile information, credentials, and status." "SQL Table"
+                tasksTable = component "Tasks Table" "Stores details of user tasks, including title, description, status, and scheduled time." "SQL Table"
+                taskRemindersTable = component "TaskReminders Table" "Stores information about scheduled reminders for tasks." "SQL Table"
+                rolesTable = component "Roles Table" "Stores application roles (e.g., Admin, User)." "SQL Table"
+                passwordHistoriesTable = component "PasswordHistories Table" "Stores a history of user passwords for security policies." "SQL Table"
+                userRolesTable = component "UserRoles Table" "Maps users to roles." "SQL Table"
+            }
+
+            // Message Queue Container
+            messageQueue = container "Message Queue" "Facilitates asynchronous communication between the Backend API and Worker Service for tasks like email notifications." "RabbitMQ" "Message Broker" {
+                description "Used for decoupling services and handling asynchronous operations. Configured with MassTransit."
+                tags "Infrastructure" "Messaging"
+            }
+        }
+
+        // External Systems
+        emailSystem = softwareSystem "External Email Service" "An external service responsible for delivering emails (e.g., SendGrid, local SMTP server for development)." "External System" {
+            tags "External" "Email"
+        }
+
+        // --- Relationships Defined at Model Level (Inter-Container, Actors-to-Container, etc.) ---
+        user -> frontendApp "Uses GUI to manage personal tasks (view, create, update, delete)" "HTTPS"
+        admin -> frontendApp "Uses GUI to manage users (view, change roles, activate/deactivate), all tasks, and system settings" "HTTPS"
+        frontendApp -> api "Makes API calls (queries and commands) for login, signup, fetching/creating tasks, user settings, admin actions. Uses VITE_BASE_API_KEY and JWT for auth." "HTTPS/JSON"
+        database -> api "Provides data access to"
+        api -> messageQueue "Publishes events to" 
+        messageQueue -> workerService "Sends messages to"
+        workerService -> emailSystem "Sends emails via"
+        workerService -> database "Reads task data from"
+    }
+
+    views {
+        // System Context View
+        systemContext taskTrackerSystem "SystemContext" "Shows how the Task Tracker System interacts with users and external systems." {
+            include *
+            autoLayout
+        }
+
+        // Container View
+        container taskTrackerSystem "Containers" "Shows the high-level containers within the Task Tracker System and their primary interactions." {
+            include *
+            autoLayout
+        }
+
+        // Component View for Backend API
+        component api "APIComponents" "Shows the major components within the Backend API and their interactions." {
+            include * 
+            autoLayout
+        }
+        
+        // Component View for Worker Service
+        component workerService "WorkerServiceComponents" "Shows the major components within the Worker Service and their interactions." {
+            include * 
+            autoLayout
+        }
+
+        // deployment view
+        deployment taskTrackerSystem Development {
+            description "Illustrates a typical Docker-based deployment scenario, reflecting the 'docker/' directory."
+            include * 
+            autoLayout
+        }
+        
+        styles {
+            element "Person" {
+                shape Person
+                background #08427B
+                color #FFFFFF
+                fontSize 22
+            }
+            element "Software System" {
+                background #1168BD
+                color #FFFFFF
+                fontSize 22
+            }
+            element "Container" {
+                background #438DD5
+                color #FFFFFF
+                fontSize 20
+            }
+            element "Component" {
+                background #85CBF0
+                color #000000
+                fontSize 18
+            }
+            element "Database" {
+                shape Cylinder
+            }
+            element "Web Browser SPA" {
+                shape WebBrowser
+            }
+            element "API" {
+                shape Component 
+            }
+            element "Message Broker" {
+                shape Pipe
+            }
+            element "External" {
+                 background #999999
+                 color #FFFFFF
+            }
+            element "Background Process" {
+                shape Hexagon
+            }
+            element "SQL Table" {
+                shape Folder
+                background #A0A0A0
+            }
+            element "ASP.NET Core MVC Controller" {
+                background #D4EFDF 
+            }
+            element "MediatR Request Handlers" {
+                background #FDEBD0
+            }
+            element "Application Service" {
+                background #E8DAEF
+            }
+            element "EF Core DbContext" {
+                background #D6EAF8
+            }
+            element "MassTransit Consumer" {
+                background #FDEDEC
+            }
+        }
+        
+        theme default
+    }
+}

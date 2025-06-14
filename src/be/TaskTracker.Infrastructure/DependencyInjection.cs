@@ -178,7 +178,7 @@ public static class DependencyInjection
         {
             throw new InvalidOperationException("Connection string not found");
         }
-
+        builder.Services.AddScoped<ITaskDbContext>(provider => provider.GetRequiredService<TaskDbContext>());
         builder.Services.AddDbContextPool<TaskDbContext>((sp, options) =>
         {
             options.UseNpgsql(connectionString,
@@ -194,7 +194,7 @@ public static class DependencyInjection
 
         builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
         builder.Services.AddTransient<IEmailService, EmailService>();
-        builder.Services.AddTransient<ITaskTrackerService, TaskTrackerService>();
+        builder.Services.AddTransient<ITaskTrackerNService, TaskTrackerNService>();
         builder.Services.AddSingleton(TimeProvider.System);
     }
 }
