@@ -1,0 +1,105 @@
+name: Docker Build and Integration Test
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test-docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build API Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: src/be/TaskTracker.Api/Dockerfile
+        push: false
+        tags: tasktracker-app/api:${{ github.sha }},tasktracker-app/api:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build Web (Frontend UI) Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: src/fe/task-tracker-ui/Dockerfile
+        push: false
+        tags: tasktracker-app/web:${{ github.sha }},tasktracker-app/web:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VITE_API_BASE_URL=http://localhost:7092/api/v1
+          VITE_BASE_API_KEY=${{ secrets.VITE_BASE_API_KEY_FROM_ENV }}
+
+    - name: Build Worker Service Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: src/be/TaskTracker.Service/Dockerfile
+        push: false
+        tags: tasktracker-app/worker:${{ github.sha }},tasktracker-app/worker:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build Backend Tests Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: tests/be/TaskTracker.Tests/Dockerfile
+        push: false
+        tags: tasktracker-app/backend-tests:${{ github.sha }},tasktracker-app/backend-tests:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Create .env file for Docker Compose
+      run: |
+        echo "Creating docker/.env file"
+        mkdir -p docker # Ensure docker directory exists if .env is placed there
+        cat > docker/.env << EOF
+        POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+        POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+        POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+        POSTGRES_CONNECTION_STRING=${{ secrets.POSTGRES_CONNECTION_STRING }}
+        REDIS_CONNECTION_STRING=${{ secrets.REDIS_CONNECTION_STRING }}
+        JWT_SECRET=${{ secrets.JWT_SECRET }}
+        API_KEY=${{ secrets.API_KEY }}
+        RABBITMQ_USER=${{ secrets.RABBITMQ_USER }}
+        RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}
+        MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+        MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+        VITE_BASE_API_KEY_FROM_ENV=${{ secrets.VITE_BASE_API_KEY_FROM_ENV }}
+        EOF
+        echo "docker/.env file created"
+        cat docker/.env
+
+    - name: Run Docker Compose tasks
+      run: |
+        docker compose -f docker/docker-compose.yml build
+        
+        docker compose -f docker/docker-compose.yml up -d postgres rabbitmq jaeger
+        
+        echo "Waiting for dependency services to start..."
+        sleep 30 
+        
+        docker compose -f docker/docker-compose.yml up -d worker
+        echo "Worker service started."
+        sleep 10
+
+        echo "Running backend tests..."
+        docker compose -f docker/docker-compose.yml up --exit-code-from backend-tests backend-tests
+        
+        TEST_EXIT_CODE=$?
+        echo "Test execution finished with exit code: $TEST_EXIT_CODE"
+        
+        echo "Stopping all services..."
+        docker compose -f docker/docker-compose.yml down
+        
+        exit $TEST_EXIT_CODE

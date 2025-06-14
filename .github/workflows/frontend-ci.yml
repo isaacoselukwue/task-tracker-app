@@ -1,0 +1,60 @@
+name: Frontend CI (Vite + Vitest)
+
+on:
+  push:
+    branches: [ '**' ]
+    paths:
+      - 'src/fe/task-tracker-ui/**'
+      - '!src/fe/task-tracker-ui/dist/**'
+      - '!src/fe/task-tracker-ui/node_modules/**'
+  pull_request:
+    branches: [ '**' ]
+    paths:
+      - 'src/fe/task-tracker-ui/**'
+      - '!src/fe/task-tracker-ui/dist/**'
+      - '!src/fe/task-tracker-ui/node_modules/**'
+
+jobs:
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: src/fe/task-tracker-ui
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: src/fe/task-tracker-ui/package-lock.json
+
+    - name: Install Frontend Dependencies
+      run: npm ci
+
+    - name: Run Vitest tests
+      run: npm test -- --coverage --reporter=junit --outputFile=vitest-results/results.xml
+      env:
+        CI: true
+        # VITE_API_BASE_URL_FOR_TESTS: ${{ secrets.VITE_API_URL_TESTS }}
+        # VITE_BASE_API_KEY_FOR_TESTS: ${{ secrets.VITE_API_KEY_TESTS }}
+
+    - name: Upload Vitest test results (JUnit)
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: frontend-vitest-results
+        path: src/fe/task-tracker-ui/vitest-results/results.xml
+        retention-days: 7
+
+    - name: Upload Vitest coverage report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: frontend-vitest-coverage
+        path: src/fe/task-tracker-ui/coverage/
+        retention-days: 7

@@ -8,7 +8,10 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
       <nav className="w-full max-w-6xl mx-auto px-4 py-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-purple-700 dark:text-purple-300">TaskTracker</h1>
+        <div className="flex items-center space-x-2">
+        <img src="https://i.imgur.com/8hjLKJ4.png" alt="TaskTracker Logo" className="w-8 h-8 rounded-full object-cover shadow" style={{ background: '#fff' }} />
+        <span className="text-2xl font-bold text-purple-700 dark:text-purple-300">TaskTracker</span>
+      </div>
         <div className="flex items-center space-x-4">
           <button onClick={toggleDarkMode} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
             aria-label="Toggle dark mode">
@@ -34,16 +37,17 @@ export default function HomePage() {
 
       <section className="text-center mt-20 max-w-2xl mx-auto">
         <h2 className="text-5xl font-extrabold text-purple-800 dark:text-purple-300 leading-tight">
-          Organize Your Day <br /> with Ease ✨
+          Organise Your Day <br /> with Ease ✨
         </h2>
         <p className="mt-6 text-gray-600 dark:text-gray-300 text-lg">
           TaskTracker helps you stay on top of your to-dos with a smart, simple, and beautiful interface.
         </p>
         <div className="mt-8 space-x-4">
-          <button className="bg-purple-700 text-white px-6 py-3 rounded-lg hover:bg-purple-800 dark:bg-purple-500 dark:hover:bg-purple-600 transition-all">
+          <button className="bg-purple-700 text-white px-6 py-3 rounded-lg hover:bg-purple-800 dark:bg-purple-500 dark:hover:bg-purple-600 transition-all"
+            onClick={() => navigate('/signup')}>
             Get Started
           </button>
-          <button className="text-purple-700 dark:text-purple-300 font-semibold hover:underline">
+          <button className="text-purple-700 dark:text-purple-300 font-semibold hover:underline" onClick={() => navigate('/forgot-password')}>
             Forgot Password?
           </button>
         </div>
@@ -56,7 +60,7 @@ export default function HomePage() {
         </div>
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
           <h3 className="text-xl font-bold text-purple-700 dark:text-purple-300">Track Progress</h3>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">Visualize your progress and stay motivated daily.</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">Visualise your progress and stay motivated daily.</p>
         </div>
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
           <h3 className="text-xl font-bold text-purple-700 dark:text-purple-300">Stay Productive</h3>

@@ -10,6 +10,7 @@ global using TaskTracker.Infrastructure.Data.Interceptors;
 global using TaskTracker.Infrastructure.Email;
 global using TaskTracker.Infrastructure.Identity;
 global using TaskTracker.Infrastructure.Queue;
+global using TaskTracker.Infrastructure.Tasks;
 
 namespace TaskTracker.Infrastructure;
 public static class DependencyInjection
@@ -127,7 +128,7 @@ public static class DependencyInjection
         builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
         builder.Services.AddTransient<IJwtService, JwtService>();
 
-        
+        builder.Services.AddTransient<ITaskTrackerService, TaskTrackerService>();
 
         builder.Services.AddMassTransit(config =>
         {
@@ -172,11 +173,28 @@ public static class DependencyInjection
                 });
             });
 
-
+        string? connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new InvalidOperationException("Connection string not found");
+        }
+        builder.Services.AddScoped<ITaskDbContext>(provider => provider.GetRequiredService<TaskDbContext>());
+        builder.Services.AddDbContextPool<TaskDbContext>((sp, options) =>
+        {
+            options.UseNpgsql(connectionString,
+                npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorCodesToAdd: null
+                        );
+                });
+        });
 
         builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
         builder.Services.AddTransient<IEmailService, EmailService>();
-
+        builder.Services.AddTransient<ITaskTrackerNService, TaskTrackerNService>();
         builder.Services.AddSingleton(TimeProvider.System);
     }
 }

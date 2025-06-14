@@ -17,7 +17,6 @@ export default function AuthLayout({ title, children }: { title: string; childre
         )}
       </button>
 
-      {/* Auth Card */}
       <div className="max-w-md w-full bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
         <div className="mb-6 text-center">
           <Link to="/" className="text-3xl font-bold text-purple-700 dark:text-purple-300">

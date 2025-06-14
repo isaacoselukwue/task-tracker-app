@@ -1,11 +1,9 @@
-﻿using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
-using System.Reflection;
+﻿global using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+global using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+global using System.Reflection;
 
 namespace TaskTracker.Infrastructure.Data;
-internal class TaskDbContext : IdentityDbContext<Users, UserRoles, Guid>, IDataProtectionKeyContext, ITaskDbContext
+public class TaskDbContext : IdentityDbContext<Users, UserRoles, Guid>, IDataProtectionKeyContext, ITaskDbContext
 {
     public TaskDbContext(DbContextOptions<TaskDbContext> options) : base(options)
     {
@@ -15,7 +13,8 @@ internal class TaskDbContext : IdentityDbContext<Users, UserRoles, Guid>, IDataP
     public new virtual DbSet<IdentityUserRole<Guid>> UserRoles { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
     public virtual DbSet<PasswordHistories> PasswordHistories { get; set; }
-    public virtual DbSet<Tasks> Tasks { get; set; }
+    public virtual DbSet<Domain.Entities.Tasks> Tasks { get; set; }
+    public virtual DbSet<TasksReminder> TaskReminders { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
