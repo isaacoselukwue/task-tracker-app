@@ -92,10 +92,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      api:
-        condition: service_healthy
     networks:
       - tasktracker-network
+    restart: "no"
 
   frontend-tests:
     build:
@@ -108,7 +107,8 @@ services:
       - tasktracker-network
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
+    restart: "no"
 
   postgres:
     image: postgres:latest

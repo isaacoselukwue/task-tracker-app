@@ -1,6 +1,6 @@
 ﻿namespace TaskTracker.Tests.Accounts.Commands;
 
-class DeactivateAccountTests
+public class DeactivateAccountTests
 {
     private Mock<IIdentityService> _mockIdentityService;
     private Mock<IPublisher> _mockPublisher;

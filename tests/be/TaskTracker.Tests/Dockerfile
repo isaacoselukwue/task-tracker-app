@@ -1,5 +1,5 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-ARG BUILD_CONFIGURATION=Release
+ARG BUILD_CONFIGURATION=Debug
 WORKDIR /src
 
 COPY ["tests/be/TaskTracker.Tests/TaskTracker.Tests.csproj", "tests/be/TaskTracker.Tests/"]
@@ -14,6 +14,6 @@ COPY . .
 
 WORKDIR "/src/tests/be/TaskTracker.Tests"
 
-ENTRYPOINT ["dotnet", "test", "--no-restore", "-c", "${BUILD_CONFIGURATION}", "--logger", "trx;LogFileName=test_results.trx", "--results-directory", "/testresults"]
+ENTRYPOINT ["dotnet", "test", "--no-restore", "--logger:console;verbosity=detailed", "--results-directory:/testresults"]
 
 VOLUME ["/testresults"]

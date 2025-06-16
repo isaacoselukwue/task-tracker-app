@@ -1,7 +1,7 @@
 ﻿namespace TaskTracker.Tests.Accounts.Commands;
 
 [TestFixture]
-class DeleteAccountTests
+public class DeleteAccountTests
 {
     private Mock<IPublisher> _mockPublisher;
     private Mock<IIdentityService> _mockIdentityService;

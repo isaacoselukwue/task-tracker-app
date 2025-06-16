@@ -1,6 +1,6 @@
 ﻿namespace TaskTracker.Tests.Accounts.Commands;
 [TestFixture]
-internal class ActivateAccountTests
+public class ActivateAccountTests
 {
     private Mock<IPublisher> _mockPublisher;
     private Mock<IIdentityService> _mockIdentityService;

@@ -1,7 +1,7 @@
 ﻿namespace TaskTracker.Tests.Accounts.Commands;
 
 [TestFixture]
-class ChangeUserRoleTests
+public class ChangeUserRoleTests
 {
     private Mock<IPublisher> _mockPublisher;
     private Mock<IIdentityService> _mockIdentityService;

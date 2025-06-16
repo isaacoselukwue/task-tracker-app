@@ -1,6 +1,6 @@
 ﻿namespace TaskTracker.Tests.Accounts.Commands;
 [TestFixture]
-class PasswordResetTests
+public class PasswordResetTests
 {
     private Mock<IPublisher> _mockPublisher;
     private Mock<IIdentityService> _mockIdentityService;
