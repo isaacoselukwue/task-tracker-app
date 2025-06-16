@@ -17,6 +17,8 @@ internal class TaskTrackerNTests
 
         _taskDbContext = new(options);
 
+        var logger = new Mock<ILogger<TaskTrackerNService>>().Object;
+
         Users user = new() { Id = Guid.NewGuid(), Email = "user@example.com" };
         Domain.Entities.Tasks task = new()
         {
@@ -53,7 +55,7 @@ internal class TaskTrackerNTests
         );
         _taskDbContext.SaveChanges();
 
-        _service = new(_taskDbContext);
+        _service = new(_taskDbContext, logger);
     }
 
     [TearDown]
